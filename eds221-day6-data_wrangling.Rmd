@@ -1,0 +1,315 @@
+---
+title: "Data Wrangling in tidyr"
+author: "Javier Patron"
+date: "2022-08-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE)
+
+library(tidyverse)
+library(here)
+library(janitor)
+```
+
+
+## Read in the world bank data files
+
+
+```{r}
+wb_indicators <- read_csv(here::here("data", "wb_indicators.csv"), na = c("..", ""))
+world_metadata <- read_csv(here::here("data", "wb_indicators_metadata.csv"))
+```
+
+### Tidy up the data
+
+QUESTION: ```{r} can you add names to filter the columns ?
+wb_indicators_long <- wb_indicators |> 
+  pivot_longer(cols = names(-"Country Name", "Country Code", "Series Name", "Series Code", names_to = "years", values_to = "indicator_value"))
+
+```{r}
+wb_indicators_long <- wb_indicators |> 
+  pivot_longer(cols = "2001 [YR2001]": "2020 [YR2020]", 
+               names_to = "years", 
+               values_to = "indicator_value")
+```
+
+
+## Separate to clean up the year column
+
+```{r}
+wb_clean <- wb_indicators_long |> 
+  separate(col = years, into = c("year", "year_chr"), sep = " ") |> 
+  select(-year_chr, -"Country Code", -"Series Code") |> 
+  mutate(year = as.numeric(year))|> 
+  drop_na("Series Name") |> 
+  pivot_wider(names_from = "Series Name", values_from = indicator_value)
+
+
+```
+
+### Rename the titles for each column
+```{r}
+
+names(wb_clean) <- c("country", "year", "access_clean_fuels_pp", "access_electricity_pp", "co2_emissions_kt", "fossil_fuel_cons_pct", "water_specs")
+```
+
+
+##Subset for specific countries
+
+```{r}
+wb_subset <- wb_clean |> 
+  filter(country %in% c("Algeria", "Barbados","Bulgaria", "Chile"))
+```
+
+## Lets Graph!
+
+```{r}
+
+ggplot(data = wb_subset, aes(x = year, y = co2_emissions_kt)) +
+  geom_line(aes(color = country)) +
+  facet_wrap(~country)
+```
+
+
+### Filter and get data
+
+## Example 1: Filter to only keep exact matches
+
+```{r}
+ex_1 <- starwars |> 
+  filter(height > 180)
+```
+
+### Get the exact number match
+
+```{r}
+ex_2 <- starwars |> 
+  filter(eye_color == "blue")
+```
+
+### Example 3: Make a subset of starwars for only NABU as the home world
+
+```{r}
+ex_3 <- starwars |> 
+  subset(homeworld == "Naboo")
+```
+
+
+
+### Double conditions in a data frame
+
+```{r}
+
+ex_4 <- starwars |> 
+  filter(height > 180 & homeworld == "Tatooine")
+  
+```
+
+### Example5: Create a subset where the hair color is brown and the species is human
+
+```{r}
+
+
+ex_5 <- starwars |> 
+  filter(hair_color == "brown" & species == "Human")
+```
+
+### Example 6: Filtering OR statements
+
+```{r}
+ex_6 <- starwars |> 
+  filter(height > 180 | eye_color == "yellow")
+
+```
+
+### Example 7: Create a subset that keep rows if homeworld is Endor OR species is droid
+
+```{r}
+ex_7 <- starwars |> 
+  filter(homeworld == "Endor" | species == "droid")
+```
+
+
+### Example 8: Eye color (blue,brown,red)
+
+```{r}
+
+ex_8 <- starwars |> 
+  filter(eye_color == "blue" | eye_color == "red" | eye_color == "brown")
+
+
+ex_9 <- starwars |> 
+  filter(eye_color %in% c("brown", "red", "blue"))
+
+
+# YOU DONT WANT TO DO THIS
+
+ex_10 <- starwars |> 
+  filter(eye_color == c("brown", "red", "blue"))
+
+```
+
+### Example 11. Create a subset where homewoeld is endor or Tattoine or naboo and height < 150
+
+```{r}
+ex_11 <- starwars |> 
+  filter(height < 150, homeworld %in% c("Endor", "Tatooine", "Naboo"))
+
+ex_12 <- starwars |> 
+  filter(species != "Human" )
+```
+
+### Use the subset
+
+```{r}
+ex_13 <- subset(starwars, species == "Human", select = c(name, sex, gender,species))
+```
+
+## Use `select`: select or exclude columns
+
+```{r}
+
+# Select by name
+
+ex_14 <- wb_clean |> 
+  select(country,year, co2_emissions_kt)
+
+ex_15 <- wb_clean |> 
+  subset(select = c(country, year, co2_emissions_kt))
+
+
+```
+
+
+Multiple pipes together
+
+```{r}
+
+ex_17 <- wb_clean |> 
+  filter(country %in% c("Bolivia", "Chile", "Mexico")) |> 
+  select(country:fossil_fuel_cons_pct)
+
+ex_18 <- subset(wb_clean, country %in% c("Bolivia", "Chile", "Mexico"), select = country:fossil_fuel_cons_pct)
+```
+
+
+
+Example 19- SELECT ONLY COLUMNS FOR COUNTRY, YEAR, AND WATER STRESS AND REORDER THEM AS YEAR, COUNTRY WATER STRESS, THEN FILTER TO ONLY INCLUDE OBSERVATIONS FOR ANY THREE COUNTRIES OF YOUR CHOOSING
+
+```{r}
+
+ex_19 <- wb_clean |> 
+  select(country, year, water_specs) |> 
+  filter(country %in% c("Fiji"))
+
+```
+
+
+### Change the names of the columns `rename`
+
+```{r}
+ex_20 <- wb_clean |> 
+  rename(ffcp = fossil_fuel_cons_pct, ws = water_specs)
+
+```
+
+`mutate`: update an existing column, or add a new one
+If you assign a NEW column name, it will add a new column to the end of your data frame. If you assign an existing column name, it will overwrite that column
+
+```{r}
+
+ex_22 <- wb_clean |> 
+  mutate(co2_emissions_t = co2_emissions_kt * 1000)
+
+ex_23 <- wb_clean |> 
+  mutate(co2_emissions_t = co2_emissions_kt * 1000) |> 
+           relocate(co2_emissions_t, .after = co2_emissions_kt)
+
+ex_24 <- wb_clean |> 
+  mutate(year = as.character(year))
+
+ex_25 <- wb_clean |> 
+  mutate(year = as.numeric (year))
+```
+
+
+### dplyr relocate the columns
+
+```{r}
+
+ex_26 <- wb_clean |> 
+  relocate(water_specs, .after = year)
+```
+
+### Use of group_by
+
+group_by: Creates groups under the hood . Doesnt chance anything superficial. Under the hood os where summarize comes in
+summarize: apply youir functions to EACH GRPUP, and return them in a nice summary table
+
+```{r}
+
+# Calculate the average height by species
+
+ex_27 <- starwars |> 
+  filter(homeworld %in% c("Naboo")) |> 
+  group_by(species) |> 
+  summarize(mean_height = mean(height, ra.rm = TRUE),
+            mean_mass = mean(mass, ra.rm = TRUE))
+            
+ex_28 <- starwars |> 
+  group_by(species) |> 
+  summarise(mean_height = mean(height, ra.rm = TRUE),
+            mean_mass = mean(mass, ra.rm = TRUE))
+
+```
+
+
+```{r}
+
+df <- tribble(
+  ~species, ~length, ~number,
+  "lobster", 12, 4,
+  "lobster", 14, 6,
+  "lobster", 15, 2,
+)
+
+df_case <- df |> 
+  uncount(number)
+
+```
+
+
+
+### count function for observations
+# combination of group_by summarize n()
+
+```{r}
+
+starwars |> 
+  count(homeworld, species)
+
+starwars |> 
+  group_by(homeworld,species) |> 
+  summarize(size = n(),
+            mean_height = mean(height, na.rm= TRUE))
+```
+
+
+Practice example:
+- Start from wb_clean
+- Only keep observations for Nicaragua, Ecuador, peru and Chile, AND for years greater than 2005
+- Only co2 emissions
+- find the toal co2 emissions converted to megatons
+
+
+```{r}
+ex_29 <- wb_clean |> 
+  filter(country %in% c("Nicaragua", "Ecuador", "Peru", "Chile") & year > 2005) |>
+  select(country, year, co2_emissions_kt) |> 
+  mutate(co2_emissions_kt, co2_emissions_MT = co2_emissions_kt/1000) |> 
+  group_by(country) |> 
+  summarize(total_co2_mt = sum(co2_emissions_MT, na.rm = TRUE))
+  
+```

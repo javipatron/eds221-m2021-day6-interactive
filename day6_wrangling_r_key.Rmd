@@ -3,7 +3,6 @@ title: "Day 6 interactive session (R version): data wrangling with tidyr and dpl
 output: html_document
 ---
 
-
 # Part 1: Reshaping & cleaning with `tidyr` functions
 
 ## Attach packages
@@ -90,7 +89,6 @@ Or, we'll learn how to use `dplyr::rename()` soon...
 # Part 2: More data wrangling with `dplyr`
 
 ## `dplyr::filter()`
-
 Use `dplyr::filter()` to keep or exclude rows based on your conditions. 
 
 **Some examples:**
